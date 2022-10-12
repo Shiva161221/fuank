@@ -11,3 +11,4 @@ http://fuank-hardware.us-e2.cloudhub.io
 - Create New Customer record - POST http://fuank-hardware.us-e2.cloudhub.io/api/customers 
 - Update Customer record - PATCH http://fuank-hardware.us-e2.cloudhub.io/api/customers/{customerid}
 
+## Application uses basic authentication 
