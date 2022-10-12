@@ -1,0 +1,96 @@
+#%RAML 1.0
+title: Fuank-CustomerAPI
+securitySchemes:
+  basic:
+    type: Basic Authentication
+    displayName: Basic Authentication
+    description: API only work with basic authentication
+protocols:
+  - HTTP
+/customers:
+  get:
+    displayName: get customer detalis
+    description: This resource will get customer details
+    responses:
+      200:
+       body:
+        application/json:
+          type: object
+          example:  !include /examples/getCustomerResposeExample.json
+      400:
+        body:
+          application/json:
+            example: !include /examples/error-400-response-example.raml
+      500:
+        body:
+          application/json:
+            example: !include /examples/error-500-response-example.raml
+              
+                                                                                                
+  post:
+    displayName: create a new customer 
+    description: This resource will create a new customer record
+    body:
+      application/json:
+        type:  !include /data-types/customerRequest.raml
+    responses:
+      201:
+        body:
+          application/json:
+            type: !include /data-types/customerResponseDataType.raml
+      400:
+        body:
+          application/json:
+            example: !include /examples/error-400-response-example.raml
+      500:
+        body:
+          application/json:
+            example: !include /examples/error-500-response-example.raml
+                
+  /{customerid}:
+    get:
+      displayName: get customer by id
+      description: This resource will get customer details by id
+      responses:
+        200:
+          body:
+            application/json:
+              type: object
+              example: !include /examples/getCustomerResposeExample.json
+        400:
+          body:
+            application/json:
+              example: !include /examples/error-400-response-example.raml
+        500:
+          body:
+            application/json:
+              example: !include /examples/error-500-response-example.raml
+    patch:
+      displayName: updated customer
+      description: This resource will update customer record
+      body:
+        application/json:
+          type: !include /data-types/customerRequest.raml
+      responses:
+        200:
+          body:
+            application/json:
+              type: !include /data-types/customerResponseDataType.raml
+        400:
+          body:
+            application/json:
+              example: !include /examples/error-400-response-example.raml
+        500:
+          body:
+            application/json:
+              example: !include /examples/error-500-response-example.raml
+
+
+          
+           
+
+
+        
+              
+
+

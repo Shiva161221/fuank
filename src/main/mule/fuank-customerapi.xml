@@ -1,0 +1,484 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:bti="http://www.mulesoft.org/schema/mule/ee/bti" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:azure-cosmos-db-connector-mule-4="http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4 http://www.mulesoft.org/schema/mule/azure-cosmos-db-connector-mule-4/current/mule-azure-cosmos-db-connector-mule-4.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/bti http://www.mulesoft.org/schema/mule/ee/bti/current/mule-bti-ee.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+    <http:listener-config name="fuank-customerapi-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="${secure::http.port}" />
+    </http:listener-config>
+    <apikit:config name="fuank-customerapi-config" api="fuank-customerapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+	<azure-cosmos-db-connector-mule-4:key-token-config name="Azure_Cosmos_Db_Key_Token_Config" doc:name="Azure Cosmos Db Key Token Config" doc:id="c0e1a647-6114-4536-a5ed-46989af5a6d6" >
+		<azure-cosmos-db-connector-mule-4:key-token-auth-connection baseUri="https://fuankdatabase.documents.azure.com:443/" key="${secure::cosmosdbKeytoken}" version="2018-12-31	" />
+	</azure-cosmos-db-connector-mule-4:key-token-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="c1297493-cc24-45b2-9ba4-24aeb21f0cbf" >
+		<salesforce:basic-connection username="${secure::salesforceUsername}" password="${secure::salesforcePassword}" securityToken="${secure::salesforceSecuritytoken}" />
+	</salesforce:sfdc-config>
+	<global-property doc:name="Global Property" doc:id="7209bedf-785a-4d68-b385-711b4101b9c1" name="secure.key" value="fuank" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="1e4b6bce-673a-4f63-823c-3c0ec91f7c62" file="local.properties" key="${secure.key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<api-gateway:autodiscovery apiId="${secure::api.id}" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="df463c86-debe-44cc-b9e2-9c1c5f694fb4" flowRef="fuank-customerapi-main" />
+	<flow name="fuank-customerapi-main">
+        <http:listener config-ref="fuank-customerapi-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="fuank-customerapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="fuank-customerapi-console">
+        <http:listener config-ref="fuank-customerapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="fuank-customerapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="patch:\customers\(customerid):application\json:fuank-customerapi-config">
+        <logger level="INFO" doc:name="Logger" doc:id="1c51fa03-4fb3-4521-bd8f-9bff0bd817b6" message="Customer Record Update Received" />
+		<logger level="DEBUG" doc:name="Logger" doc:id="fb7162b5-e1d1-4c5e-955a-a3a0333dcae6" message="payload" />
+		<set-variable value="#[payload]" doc:name="Customer Request Payload" doc:id="63f4e35e-a6ce-4aec-b953-4a8c8b3da52f" variableName="customer" />
+		<set-variable value="#[attributes.uriParams.customerid]" doc:name="Set Customer Id" doc:id="fd924c14-6537-4c84-a5ad-3040c896bc8a" variableName="customerId"/>
+		<salesforce:query doc:name="Query" doc:id="4dda926e-b062-48c9-9487-b198ad5ea214" config-ref="Salesforce_Config">
+								<salesforce:salesforce-query><![CDATA[select customerID__c, companyName__c, firstName__c, lastName__c, email__c, phone__c from customers__c where customerID__c=':customerId'
+]]></salesforce:salesforce-query>
+								<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	customerId : vars.customerId
+}]]]></salesforce:parameters>
+							</salesforce:query>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="36f52cd3-6024-4aaa-afc2-d6dc525e2c48" variableName="SFInitialPayload" />
+		<azure-cosmos-db-connector-mule-4:get-document doc:name="Get Document" doc:id="1638b98a-ca56-44fd-a1ec-ab089856faab" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuankdatabase" collIdUriParam="customer" docIdUriParam="#[vars.Customerid]" xMsDocumentdbPartitionkeyHeader="#[write([vars.Customerid], 'application/json')]" xMsConsistencyLevelHeader="SESSION" />
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="3fdf867e-f5b4-4c63-a067-70ec91e80ef0" variableName="AZInitialPayload" />
+		<scatter-gather doc:name="Scatter-Gather" doc:id="03a2e850-c41e-4ec3-9df7-78ef5a02bcda" >
+			<route >
+				<try doc:name="Try" doc:id="28b4633e-dc84-4e9a-aa8f-5434598d0952" >
+					<ee:transform doc:name="Transform Message" doc:id="e4511a86-08b2-4115-9c1f-8365d4202dba">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var custPayload = vars.customer
+---
+[{
+CustomerID__c: vars.customerId,
+firstName__c: custPayload.firstName,
+lastName__c: custPayload.lastName,
+email__c: custPayload.email,
+companyName__c: custPayload.companyName,
+phone__c: custPayload.phone
+}]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+					<salesforce:upsert objectType="customers__c" externalIdFieldName="CustomerID__c" doc:name="Upsert" doc:id="b3e7d4bd-1cc9-43db-b503-9f89ac732848" config-ref="Salesforce_Config" />
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3c9af10d-70b4-46a0-990c-7bfccc4544a4" type="ANY">
+						</on-error-propagate>
+					</error-handler>
+				</try>
+			</route>
+			<route >
+				<try doc:name="Try" doc:id="dcaa93f7-25de-4c39-abc0-6488fbd2b0c7" >
+					<ee:transform doc:name="Transform Message" doc:id="98611ab6-9a20-4565-bd50-696bbc7e4855">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var custPayload = vars.customer
+
+---
+{
+	"id": vars.customerId,
+    "personalInformation": {
+        "firstName": custPayload.firstName,
+        "lastName": custPayload.lastName,
+        "companyName": custPayload.companyName,
+        "email": custPayload.email,
+        "phone": custPayload.phone
+    },
+    "address": 
+       [
+          {
+            "street": custPayload.street,
+            "houseNumber": custPayload.houseNumber,
+            "city": custPayload.city,
+            "country": custPayload.country,
+            "postalCode": custPayload.postalCode
+        
+           },
+         ]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+					<azure-cosmos-db-connector-mule-4:replace-document doc:name="Replace Document" doc:id="8ee21231-8982-49d7-8828-472243306417" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuankdatabase" collIdUriParam="customer" docIdUriParam="#[payload.id]" xMsDocumentdbPartitionkeyHeader="#[write([payload.id], 'application/json')]" />
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f19fc7db-2ae6-4531-8faa-780eccde3a94" type="ANY">
+						</on-error-propagate>
+					</error-handler>
+				</try>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:id="4e93c58c-431c-4ba7-8a8b-2689b671bf87">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "customerId": vars.customerId,
+  "message": "Success"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7fb0a6b2-ad34-443c-943f-74293fd67f1b" type="MULE:COMPOSITE_ROUTING" >
+				<foreach doc:name="For Each" doc:id="ddba4ce0-ae5b-4d5e-b344-d1c0dca2d03e" collection="#[error.errors]" >
+					<choice doc:name="Choice" doc:id="975b6047-0f2d-4ea9-b2e0-60f93b40acdd" >
+						<when expression='#[payload.errorType.namespace == "AZURE-COSMOS-DB-CONNECTOR-MULE-4"]' >
+							<logger level="INFO" doc:name="Logger" doc:id="6529e63c-cd00-4c3a-91e7-fbae736fa28a" message="Rolling back SF Insert" />
+							<salesforce:upsert objectType="customers__c" externalIdFieldName="CustomerID__c" doc:name="Upsert" doc:id="f92d5e8d-70f1-4fe2-b5e9-c1a1f1a9fb71" config-ref="Salesforce_Config" >
+								<salesforce:records ><![CDATA[#[vars.SFInitialPayload]]]></salesforce:records>
+							</salesforce:upsert>
+						</when>
+						<when expression='#[payload.errorType.namespace == "SALESFORCE"]' >
+							<logger level="INFO" doc:name="Logger" doc:id="eb017811-5893-4720-b3c3-4290bce5e1cb" message="Rolling back AZ Document" />
+							<azure-cosmos-db-connector-mule-4:replace-document doc:name="Replace Document" doc:id="dc952a2f-8f7e-455e-8791-6bf1eb1060ea" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuankdatabase" collIdUriParam="customer" docIdUriParam="#[vars.AZInitialPayload.id]" xMsDocumentdbPartitionkeyHeader="#[write([payload.id], 'application/json')]" />
+						</when>
+					</choice>
+				</foreach>
+				<set-variable value="400" doc:name="Set Http Status Code" doc:id="0fd7f18d-0241-4726-a552-bb4fdc108e78" variableName="httpStatus" />
+				<ee:transform doc:name="Transform Message" doc:id="95be09b4-5811-4ddb-94ac-2e21781e0ca6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{message: "Unable to update customer"}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+	<flow name="get:\customers:fuank-customerapi-config">
+		<azure-cosmos-db-connector-mule-4:list-documents doc:name="List Documents" doc:id="53fceafe-ab94-4f27-afc3-5e6f795205ee" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuankdatabase" collIdUriParam="customer"/>
+		<ee:transform doc:id="5bb2fd39-dd13-4c99-996d-6591ade236d9">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="accounts"><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+        </ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="78b01dbc-cc83-4762-81f7-e7caa8bca22a" />
+		<ee:transform doc:name="Transform Message" doc:id="b10fe901-55d2-421a-a2a4-429a5f89aaae" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map {
+        customerId :$.id,
+        personalInformation: {
+            companyName: $.personalInformation.companyName,
+            firstName: $.personalInformation.firstName,
+            lastName: $.personalInformation.lastName,
+            email: $.personalInformation.email,
+            phone: $.personalInformation.phone
+        },
+        address: $.address map(object, index) -> {
+            street: object.street,
+            houseNumber: object.houseNumber,
+            city: object.city,
+            country: object.country,
+            postalcode: object.postalCode
+        }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+    </flow>
+	<flow name="get:\customers\(customerid):fuank-customerapi-config">
+		<logger level="INFO" doc:name="Logger" doc:id="b770e87e-486f-49ad-8946-0c9a65aa9e43" message="getCustomerbyId"/>
+		<logger level="DEBUG" doc:name="Logger" doc:id="f2ceb230-3ca4-40b5-95bc-304a114af442" message="payload"/>
+		<set-variable value="#[attributes.uriParams.customerid]" doc:name="getCustomerbyId" doc:id="815e8f9b-df88-4e7a-bbc0-bd9a13504e98" variableName="Customerid"/>
+		<azure-cosmos-db-connector-mule-4:get-document doc:name="Get Document" doc:id="dcf78d08-6c7b-4969-9f5a-6ef522da709c" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuankdatabase" collIdUriParam="customer" docIdUriParam="#[vars.Customerid]" xMsConsistencyLevelHeader="SESSION" xMsDocumentdbPartitionkeyHeader="#[write([vars.Customerid], 'application/json')]"/>
+		<ee:transform doc:name="Transform Message" doc:id="0a9aa07a-52b8-49a0-91df-79655791a688" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+---
+{
+	"customerId": payload.id,
+    "personalInformation": {
+        "firstName": payload.personalInformation.firstName,
+        "lastName": payload.personalInformation.lastName,
+        "companyName":payload.personalInformation.companyName,
+        "email": payload.personalInformation.email,
+        "phone": payload.personalInformation.phone
+    },
+    "address": 
+       [
+          {
+            "street": payload.address[0].street,
+            "houseNumber": payload.address[0].houseNumber,
+            "city": payload.address[0].city,
+            "country": payload.address[0].country,
+            "postalCode": payload.address[0].postalCode
+        
+           },
+         ]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+    </flow>
+	<flow name="post:\customers:application\json:fuank-customerapi-config">
+		<logger level="INFO" doc:name="Logger" doc:id="3fdbdf8b-6230-456a-b74f-c5c1ebe3dc66" message="Customer Received" />
+		<logger level="DEBUG" doc:name="Logger" doc:id="8c812cba-ec10-4d1e-99e9-b7e88788173d" message="payload"/>
+		<set-variable value="#[payload]" doc:name="Customer Request Payload" doc:id="4077983a-7208-4131-bd26-8371a30b306d" variableName="customer"/>
+		<set-variable value="#[uuid()]" doc:name="Generate customerId" doc:id="285c2d17-d31e-4846-aaba-79dc8d41be1c" variableName="customerId"/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="959ce3e3-b71b-4a67-b931-7632a42370fb" >
+			<route >
+				<try doc:name="Try" doc:id="b19b6ce6-b6e2-429c-bf3a-199478a36afe" >
+					<ee:transform doc:id="966e8de2-017b-49d7-bb89-e7abf1a55bd1">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var custPayload = vars.customer
+---
+[{
+CustomerID__c: vars.customerId,
+firstName__c: custPayload.firstName,
+lastName__c: custPayload.lastName,
+email__c: custPayload.email,
+companyName__c: custPayload.companyName,
+phone__c: custPayload.phone
+}]]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+					<salesforce:upsert doc:name="Upsert" doc:id="6cf00acc-b951-4a36-920f-4fa1ce742c5d" config-ref="Salesforce_Config" objectType="customers__c" externalIdFieldName="CustomerID__c">
+		</salesforce:upsert>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="b225b1cf-7836-4823-a825-4029f6d5c496" type="ANY">
+						</on-error-propagate>
+					</error-handler>
+				</try>
+			</route>
+			<route >
+				<try doc:name="Try" doc:id="460607cb-99b0-4dbf-b0af-cf82d0af0800" >
+					<ee:transform doc:name="Transform Message" doc:id="977a21c5-efe6-408f-b3f7-085d917a6a49">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var custPayload = vars.customer
+
+---
+{
+	"id": vars.customerId,
+    "personalInformation": {
+        "firstName": custPayload.firstName,
+        "lastName": custPayload.lastName,
+        "companyName": custPayload.companyName,
+        "email": custPayload.email,
+        "phone": custPayload.phone
+    },
+    "address": 
+       [
+          {
+            "street": custPayload.street,
+            "houseNumber": custPayload.houseNumber,
+            "city": custPayload.city,
+            "country": custPayload.country,
+            "postalCode": custPayload.postalCode
+        
+           },
+         ]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+					<azure-cosmos-db-connector-mule-4:create-document doc:name="Create Document" doc:id="db10607c-7f14-46a3-9e08-a4f58ccb1e0a" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuankdatabase" collIdUriParam="customer" xMsDocumentdbPartitionkeyHeader="#[write([payload.id], 'application/json')]" xMsIndexingDirectiveHeader="INCLUDE">
+		</azure-cosmos-db-connector-mule-4:create-document>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9b6d7f14-2069-4cc0-88dc-dcc2e1ec04c4" type="ANY">
+						</on-error-propagate>
+					</error-handler>
+				</try>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="b1dcc707-d231-43c0-b6e1-35ee8b067615">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "customerId": vars.customerId,
+  "message": "Success"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler>
+			
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d1a68d89-d4a0-4398-b074-7efa026247cb" type="MULE:COMPOSITE_ROUTING">
+				 
+				<!-- This will have the error thrown by the first route -->
+				<foreach doc:name="For Each" doc:id="4cea69d7-be75-4845-bfd2-d0d07016389b" collection="#[error.errors]">
+					<choice doc:name="Choice" doc:id="535955ec-8542-4e21-a778-16d96fdd4bcb">
+					<when expression='#[payload.errorType.namespace == "AZURE-COSMOS-DB-CONNECTOR-MULE-4"]'>
+						<logger level="INFO" doc:name="Logger" doc:id="107fbc7b-36f1-4a3d-9ba7-c4ee9f8f4442" message="Rolling back SF Insert"/>
+							<salesforce:query doc:name="Query" doc:id="9e62aeeb-e993-47f6-8c7c-7290cd8a975f" config-ref="Salesforce_Config">
+					<salesforce:salesforce-query><![CDATA[select id from customers__c where customerID__c=':customerId'
+]]></salesforce:salesforce-query>
+					<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	customerId : vars.customerId
+}]]]></salesforce:parameters>
+				</salesforce:query>
+						<ee:transform doc:name="Transform Message" doc:id="a10b2aff-db99-444a-a521-81c669c36308">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+
+payload map{
+	Id : $.Id
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+						<salesforce:delete doc:name="Delete" doc:id="ff8525a9-dae0-4970-844e-a81aa030cdd5" config-ref="Salesforce_Config">
+					<salesforce:ids><![CDATA[#[payload.Id]]]></salesforce:ids>
+				</salesforce:delete>
+					</when>
+						<when expression='#[payload.errorType.namespace == "SALESFORCE"]'>
+							<logger level="INFO" doc:name="Logger" doc:id="845e0d08-92f0-4a0c-9f88-9560fca8605e" message="Rolling back AZ Document"/>
+							<azure-cosmos-db-connector-mule-4:delete-document doc:name="Delete Document" doc:id="0c04e6ab-8fdc-4480-92b7-b82768f7189c" config-ref="Azure_Cosmos_Db_Key_Token_Config" dbIdUriParam="fuankdatabase" collIdUriParam="customer" docIdUriParam="#[vars.customerId]" xMsDocumentdbPartitionkeyHeader="#[write([vars.customerId], 'application/json')]"/>
+						</when>
+				</choice>
+				</foreach>
+				<set-variable value="400" doc:name="Set Http Status Code" doc:id="9bda68af-6417-447e-ab5a-880cc2532d1f" variableName="httpStatus"/>
+				<ee:transform doc:name="Transform Message" doc:id="f1196002-d4e7-4649-8579-698a7c47fce9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{message: "Unable to create customer"}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+	            
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+</mule>

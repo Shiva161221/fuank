@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	<munit:config name="fuank-post-customerapi-suite.xml" />
+	<munit:test name="post:\customers:application\json:fuank-customerapi-config-test" doc:id="8650c3d7-f2e4-4d32-ac13-243e4d7f1903" >
+		<munit:behavior >
+			<munit:set-event doc:name="Set Input" doc:id="eb486953-63db-4b29-bb20-442b689caa06" >
+				<munit:payload value="#[output application/json  --- readUrl('classpath://postcustomersapplicationjsonfuankcustomerapiconfigtest/set-event_payload.dwl')]" encoding="UTF-8" mediaType="application/json " />
+				<munit:attributes value="#[readUrl('classpath://postcustomersapplicationjsonfuankcustomerapiconfigtest/set-event_attributes.dwl')]" />
+			</munit:set-event>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to post:\customers:application\json:fuank-customerapi-config" doc:id="8afbe0ed-5161-4800-a49b-8998c63a189b" name="post:\customers:application\json:fuank-customerapi-config"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:verify-call doc:name="Verify Transform Message" doc:id="c3582a58-ea2b-4956-bdf4-d379a38b57a1" processor="ee:transform" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="b1dcc707-d231-43c0-b6e1-35ee8b067615" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:verify-call doc:name="Verify Logger" doc:id="4087c781-6776-4412-84a2-54b3b7c7013f" processor="logger" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="3fdbdf8b-6230-456a-b74f-c5c1ebe3dc66" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:verify-call doc:name="Verify Logger" doc:id="58f42cbd-0080-4e00-af00-277e003b5da0" processor="logger" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="8c812cba-ec10-4d1e-99e9-b7e88788173d" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:verify-call doc:name="Verify Customer Request Payload" doc:id="453d4ecf-21f7-41c0-b652-bd078af9ce1a" processor="set-variable" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="4077983a-7208-4131-bd26-8371a30b306d" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:verify-call doc:name="Verify Upsert" doc:id="aea7a560-33a9-4200-bd24-d56410d25bb3" processor="salesforce:upsert" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="6cf00acc-b951-4a36-920f-4fa1ce742c5d" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:verify-call doc:name="Verify Create Document" doc:id="6a49eee7-6a59-4b26-be57-7f90d174178f" processor="azure-cosmos-db-connector-mule-4:create-document" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="db10607c-7f14-46a3-9e08-a4f58ccb1e0a" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:verify-call doc:name="Verify Transform Message" doc:id="420d5dda-cf83-418b-a01b-83a0703bac1c" processor="ee:transform" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="966e8de2-017b-49d7-bb89-e7abf1a55bd1" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:verify-call doc:name="Verify Transform Message" doc:id="d33aba70-23dc-4e9a-9060-df609adaf339" processor="ee:transform" times="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="977a21c5-efe6-408f-b3f7-085d917a6a49" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+		</munit:validation>
+	</munit:test>
+
+</mule>
